@@ -1,5 +1,7 @@
 # Smart Locker & Access Monitoring System
 
+![Wokwi circuit](images/circuit.png)
+
 An ESP32 smart locker written in procedural C. It unlocks with an **RFID card + PIN**, logs every event, raises a **tamper alarm** if the door is forced, sends **phone alerts**, and shows live statistics on a **web dashboard**. The whole circuit runs in the **Wokwi** simulator inside VS Code, so no hardware is needed to try it.
 
 ## Features
@@ -9,11 +11,35 @@ An ESP32 smart locker written in procedural C. It unlocks with an **RFID card + 
 - **Auto-relock** 1 s after the door closes, or after 10 s if it is never opened
 - **Tamper alarm** if the door opens while locked; cleared by a valid user
 - **Admin mode:** enrol a card, enable/disable a user, open the locker, print the log
-- **Access log** kept as a linked list in RAM (newest 20) and a CSV file in flash (every entry)
+- **Access log** kept as a linked list in RAM (newest 20) and a CSV file in flash (every entry, when the file system is available)
 - **Real timestamps** from the internet (NTP)
 - **Cloud sync** to Firebase Realtime Database; entries made while offline are uploaded later
 - **Phone alerts** for tamper and lockout events via [ntfy](https://ntfy.sh)
 - **Web dashboard** with live status and five charts
+
+## Screenshots
+
+### Locker (OLED)
+
+| Idle | PIN entry | Admin menu |
+|---|---|---|
+| ![Locked, tap your card](images/oled-tapcard.png) | ![PIN entry with countdown](images/oled-pin.png) | ![Admin menu](images/oled-admin.png) |
+
+### Web dashboard
+
+![Live status and daily statistics](images/dashboard-status.png)
+
+![Charts: accesses by user, busy hours, security events](images/dashboard-charts.png)
+
+![Recent activity log](images/dashboard-activity.png)
+
+### Phone alerts and serial log
+
+<p>
+  <img src="images/phone-alert.png" alt="ntfy phone alerts" width="280">
+  &nbsp;
+  <img src="images/serial-monitor.png" alt="Serial Monitor log output" width="560">
+</p>
 
 ## Hardware
 
@@ -36,6 +62,7 @@ The full circuit is in `diagram.json`.
 ├── diagram.json            # Wokwi circuit
 ├── platformio.ini          # board, framework and libraries
 ├── wokwi.toml              # Wokwi simulator settings
+├── images/                 # screenshots for this README
 └── dashboard/
     ├── firebase.json       # Firebase Hosting settings
     └── public/index.html   # dashboard (HTML, CSS, JavaScript, Chart.js)
@@ -134,6 +161,7 @@ The file is `.cpp` because the Arduino framework on the ESP32 compiles as C++ an
 - Only 4-byte RFID cards are supported.
 - Without Wi-Fi at start-up, timestamps are 0 and cloud sync stays off until restart.
 - HTTPS certificate checking is skipped (`setInsecure()`), for simulation only.
+- In the Wokwi simulator the flash file system may not start ("File system not available"); the locker then skips the log file and keeps working with the in-memory log and Firebase.
 
 ## Ideas for improvement
 
