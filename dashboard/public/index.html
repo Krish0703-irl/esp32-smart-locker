@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Locker Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ---------- Colours: painted steel locker ---------- */
+  :root {
+    --steel: #D5DCE2;      /* page background  */
+    --panel: #EEF2F5;      /* panels           */
+    --ink:   #17232E;      /* text             */
+    --muted: #56636F;      /* secondary text   */
+    --line:  #B7C1CA;      /* dividers         */
+    --green: #1E7552;      /* unlocked / granted */
+    --red:   #B3342A;      /* alarm / denied   */
+    --brass: #9C7430;      /* buttons, focus   */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--steel);
+    color: var(--ink);
+    font: 16px/1.5 "Barlow", system-ui, sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
+  h1, h2 { font-family: "Barlow Condensed", "Barlow", sans-serif; margin: 0; }
+  h1 { font-size: 2rem; font-weight: 700; }
+  h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 12px; }
+  :focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+
+  /* ---------- Header ---------- */
+  header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  #connection { color: var(--muted); font-size: .95rem; }
+  #connection::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); margin-right: 8px; }
+  #connection.online::before { background: var(--green); }
+  #connection.offline::before { background: var(--red); }
+
+  /* The locker door: the one bold element of the page */
+  .door {
+    position: relative;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 6px;
+    padding: 28px 32px 32px;
+    min-height: 240px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  /* air vents, like a real locker door */
+  .door::after {
+    content: ""; position: absolute; right: 32px; top: 28px; width: 90px; height: 70px;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.18) 0 4px, transparent 4px 12px);
+  }
+  .door .word {
+    font-family: "Barlow Condensed", sans-serif; font-weight: 700;
+    font-size: clamp(3.5rem, 9vw, 6rem); line-height: 1; margin: 18px 0 20px;
+  }
+  .door.unlocked { background: var(--green); }
+  .door.alarm    { background: var(--red); }
+  .door dl { display: flex; gap: 32px; margin: 0; flex-wrap: wrap; }
+  .door dt { font-size: .85rem; opacity: .75; }
+  .door dd { margin: 0; font-weight: 600; font-size: 1.1rem; }
+
+  /* ---------- Today's numbers ---------- */
+  .today { display: flex; background: var(--panel); border-radius: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .today div { flex: 1 1 150px; padding: 16px 20px; border-left: 1px solid var(--line); }
+  .today div:first-child { border-left: none; }
+  .today strong { display: block; font-family: "Barlow Condensed", sans-serif; font-size: 2.2rem; line-height: 1.1; }
+  .today span { color: var(--muted); font-size: .95rem; }
+
+  /* ---------- Charts and table ---------- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .box { background: var(--panel); border-radius: 6px; padding: 20px; min-width: 0; }
+  .box canvas { width: 100% !important; height: 240px !important; }
+  .wide { grid-column: 1 / -1; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+  td.bad { color: var(--red); font-weight: 600; }
+  td.good { color: var(--green); font-weight: 600; }
+  .empty { color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .door::after { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Smart Locker</h1>
+    <span id="connection">Connecting to the database…</span>
+  </header>
+
+    <!-- Live status of the locker -->
+    <div class="door" id="door" aria-live="polite">
+      <div>Locker status</div>
+      <div class="word" id="status-word">…</div>
+      <dl>
+        <div><dt>Door</dt><dd id="status-door">–</dd></div>
+        <div><dt>Alarm</dt><dd id="status-alarm">–</dd></div>
+        <div><dt>Last update</dt><dd id="status-time">–</dd></div>
+      </dl>
+    </div>
+
+  <!-- Today's numbers -->
+  <section class="today" aria-label="Today">
+    <div><strong id="today-granted">0</strong><span>Accesses today</span></div>
+    <div><strong id="today-denied">0</strong><span>Failed attempts today</span></div>
+    <div><strong id="today-alarms">0</strong><span>Alarms today</span></div>
+    <div><strong id="last-user">–</strong><span id="last-time">Last access</span></div>
+  </section>
+
+  <!-- Statistics -->
+  <section class="grid">
+    <div class="box"><h2>Accesses in the last 7 days</h2><canvas id="chart-days"></canvas></div>
+    <div class="box"><h2>Granted and denied</h2><canvas id="chart-result"></canvas></div>
+    <div class="box"><h2>Accesses by user</h2><canvas id="chart-users"></canvas></div>
+    <div class="box"><h2>Busy hours</h2><canvas id="chart-hours"></canvas></div>
+    <div class="box wide"><h2>Security events</h2><canvas id="chart-security"></canvas></div>
+
+    <div class="box wide">
+      <h2>Recent activity</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Event</th><th>User</th></tr></thead>
+          <tbody id="log-rows"><tr><td colspan="3" class="empty">No activity yet. Tap a card in the simulator to create the first entry.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ================================================================
+ * SETTINGS: paste the same Firebase URL as in the ESP32 code
+ * ================================================================ */
+const FIREBASE_URL = "https://YOUR-PROJECT-default-rtdb.firebaseio.com";
+const REFRESH_MS   = 3000;     // read new data every 3 seconds
+const OFFLINE_MS   = 20000;    // no status for 20 s = locker offline
+
+/* Which events count as what */
+const GRANTED  = ["ACCESS_GRANTED", "FINGERPRINT_UNLOCK"];
+const DENIED   = ["WRONG_PIN", "UNKNOWN_CARD", "DISABLED_USER"];
+const SECURITY = ["TAMPER_ALARM", "LOCKOUT", "UNKNOWN_CARD"];
+
+/* ================================================================
+ * FIREBASE: read and write JSON with fetch()
+ * ================================================================ */
+async function dbGet(path) {
+  const res = await fetch(`${FIREBASE_URL}${path}.json`);
+  if (!res.ok) throw new Error(`Database read failed (${res.status})`);
+  return res.json();
+}
+async function dbPut(path, data) {
+  const res = await fetch(`${FIREBASE_URL}${path}.json`, { method: "PUT", body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(`Database write failed (${res.status})`);
+}
+
+/* ================================================================
+ * STATISTICS: turns the list of logs into numbers for the charts
+ * ================================================================ */
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function computeStats(logs, now) {
+  const stats = {
+    todayGranted: 0, todayDenied: 0, todayAlarms: 0, last: null,
+    dayLabels: [], dayCounts: [0, 0, 0, 0, 0, 0, 0],
+    granted: 0, denied: 0,
+    byUser: {}, hours: new Array(24).fill(0),
+    security: { TAMPER_ALARM: 0, LOCKOUT: 0, UNKNOWN_CARD: 0 }
+  };
+
+  // labels for the last 7 days, oldest first
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+    days.push(d);
+    stats.dayLabels.push(d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }));
+  }
+
+  for (const log of logs) {
+    const isGranted = GRANTED.includes(log.event);
+    const isDenied  = DENIED.includes(log.event);
+    if (isGranted) stats.granted++;
+    if (isDenied)  stats.denied++;
+    if (SECURITY.includes(log.event)) stats.security[log.event]++;
+
+    if (isGranted) {
+      stats.byUser[log.user] = (stats.byUser[log.user] || 0) + 1;
+    }
+
+    if (!log.t) continue;                       // no real time recorded
+    const when = new Date(log.t * 1000);
+
+    if (sameDay(when, now)) {
+      if (isGranted) stats.todayGranted++;
+      if (isDenied)  stats.todayDenied++;
+      if (log.event === "TAMPER_ALARM") stats.todayAlarms++;
+    }
+    if (isGranted) {
+      stats.hours[when.getHours()]++;
+      days.forEach((d, i) => { if (sameDay(when, d)) stats.dayCounts[i]++; });
+      if (!stats.last || log.t >= stats.last.t) stats.last = log;
+    }
+  }
+  return stats;
+}
+
+/* ================================================================
+ * CHARTS (Chart.js)
+ * ================================================================ */
+const INK = "#17232E", GREEN = "#1E7552", RED = "#B3342A", BRASS = "#9C7430", MUTED = "#56636F";
+Chart.defaults.font.family = "Barlow, sans-serif";
+Chart.defaults.color = MUTED;
+Chart.defaults.plugins.legend.display = false;
+
+function barChart(id, color) {
+  return new Chart(document.getElementById(id), {
+    type: "bar",
+    data: { labels: [], datasets: [{ data: [], backgroundColor: color, borderRadius: 3 }] },
+    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } }
+  });
+}
+function donutChart(id, labels, colors) {
+  return new Chart(document.getElementById(id), {
+    type: "doughnut",
+    data: { labels, datasets: [{ data: [0, 0], backgroundColor: colors, borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: "62%", plugins: { legend: { display: true, position: "bottom" } } }
+  });
+}
+
+const charts = {
+  days:     barChart("chart-days", GREEN),
+  users:    barChart("chart-users", INK),
+  hours:    barChart("chart-hours", BRASS),
+  security: barChart("chart-security", RED),
+  result:   donutChart("chart-result", ["Granted", "Denied"], [GREEN, RED])
+};
+
+function setChart(chart, labels, values) {
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = values;
+  chart.update("none");
+}
+
+/* ================================================================
+ * DRAWING THE PAGE
+ * ================================================================ */
+const $ = (id) => document.getElementById(id);
+
+function formatTime(t) {
+  if (!t) return "Time not set";
+  return new Date(t * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function showStatus(status) {
+  const door = $("door");
+  const fresh = status && status.t && (Date.now() - status.t * 1000) < OFFLINE_MS;
+
+  $("connection").className = fresh ? "online" : "offline";
+  $("connection").textContent = fresh ? "Locker online" : "Locker offline. Start the simulator to see live status.";
+
+  if (!status) { $("status-word").textContent = "No data"; return; }
+  door.className = "door" + (status.alarm ? " alarm" : status.locked ? "" : " unlocked");
+  $("status-word").textContent = status.alarm ? "Alarm" : status.locked ? "Locked" : "Unlocked";
+  $("status-door").textContent = status.door === "open" ? "Open" : "Closed";
+  $("status-alarm").textContent = status.alarm ? "Tamper detected" : "Quiet";
+  $("status-time").textContent = formatTime(status.t);
+}
+
+function showStats(stats) {
+  $("today-granted").textContent = stats.todayGranted;
+  $("today-denied").textContent  = stats.todayDenied;
+  $("today-alarms").textContent  = stats.todayAlarms;
+  $("last-user").textContent     = stats.last ? stats.last.user : "–";
+  $("last-time").textContent     = stats.last ? "Last access, " + formatTime(stats.last.t) : "Last access";
+
+  setChart(charts.days, stats.dayLabels, stats.dayCounts);
+  setChart(charts.users, Object.keys(stats.byUser), Object.values(stats.byUser));
+  setChart(charts.hours, stats.hours.map((_, h) => String(h).padStart(2, "0")), stats.hours);
+  setChart(charts.security, ["Tamper alarms", "Lockouts", "Unknown cards"],
+           [stats.security.TAMPER_ALARM, stats.security.LOCKOUT, stats.security.UNKNOWN_CARD]);
+  setChart(charts.result, ["Granted", "Denied"], [stats.granted, stats.denied]);
+}
+
+function showLogs(logs) {
+  const rows = logs.slice(-15).reverse();          // newest 15, newest first
+  if (rows.length === 0) return;
+  $("log-rows").innerHTML = rows.map((log) => {
+    const cls = GRANTED.includes(log.event) ? "good" : (DENIED.includes(log.event) || SECURITY.includes(log.event)) ? "bad" : "";
+    const name = log.event.replace(/_/g, " ").toLowerCase();
+    return `<tr><td>${formatTime(log.t)}</td><td class="${cls}">${name}</td><td>${log.user === "-" ? "" : log.user}</td></tr>`;
+  }).join("");
+}
+
+async function refresh() {
+  try {
+    const [status, logObject] = await Promise.all([dbGet("/status"), dbGet("/logs")]);
+    // Firebase gives { key1: {...}, key2: {...} }; turn it into a sorted list
+    const logs = Object.values(logObject || {}).sort((a, b) => (a.t - b.t) || (a.n - b.n));
+    showStatus(status);
+    showStats(computeStats(logs, new Date()));
+    showLogs(logs);
+  } catch (err) {
+    $("connection").className = "offline";
+    $("connection").textContent = "Can't reach the database. Check FIREBASE_URL in the code.";
+  }
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

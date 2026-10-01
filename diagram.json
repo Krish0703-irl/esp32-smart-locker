@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "author": "",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-membrane-keypad",
+      "id": "keypad1",
+      "top": -60,
+      "left": -440,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": -110,
+      "left": 170,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid1",
+      "top": 180,
+      "left": 260,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": 260,
+      "left": -180,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -140,
+      "left": -60,
+      "attrs": {
+        "volume": "0.1"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_green",
+      "top": 30,
+      "left": 240,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_red",
+      "top": 30,
+      "left": 290,
+      "attrs": {
+        "color": "red"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 110,
+      "left": 200,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 130,
+      "left": 260,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "door_sw",
+      "top": 300,
+      "left": 90,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "oled1:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "oled1:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "oled1:SCL",
+      "esp:22",
+      "green",
+      []
+    ],
+    [
+      "oled1:SDA",
+      "esp:21",
+      "blue",
+      []
+    ],
+    [
+      "rfid1:3.3V",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "rfid1:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "rfid1:SCK",
+      "esp:18",
+      "orange",
+      []
+    ],
+    [
+      "rfid1:MISO",
+      "esp:19",
+      "purple",
+      []
+    ],
+    [
+      "rfid1:MOSI",
+      "esp:23",
+      "blue",
+      []
+    ],
+    [
+      "rfid1:SDA",
+      "esp:5",
+      "yellow",
+      []
+    ],
+    [
+      "rfid1:RST",
+      "esp:27",
+      "white",
+      []
+    ],
+    [
+      "keypad1:R1",
+      "esp:32",
+      "gold",
+      []
+    ],
+    [
+      "keypad1:R2",
+      "esp:33",
+      "gold",
+      []
+    ],
+    [
+      "keypad1:R3",
+      "esp:25",
+      "gold",
+      []
+    ],
+    [
+      "keypad1:R4",
+      "esp:26",
+      "gold",
+      []
+    ],
+    [
+      "keypad1:C1",
+      "esp:14",
+      "violet",
+      []
+    ],
+    [
+      "keypad1:C2",
+      "esp:16",
+      "violet",
+      []
+    ],
+    [
+      "keypad1:C3",
+      "esp:17",
+      "violet",
+      []
+    ],
+    [
+      "keypad1:C4",
+      "esp:4",
+      "violet",
+      []
+    ],
+    [
+      "servo1:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "servo1:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo1:PWM",
+      "esp:13",
+      "orange",
+      []
+    ],
+    [
+      "bz1:1",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "bz1:2",
+      "esp:15",
+      "red",
+      []
+    ],
+    [
+      "esp:2",
+      "r1:1",
+      "green",
+      []
+    ],
+    [
+      "r1:2",
+      "led_green:A",
+      "green",
+      []
+    ],
+    [
+      "led_green:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:12",
+      "r2:1",
+      "red",
+      []
+    ],
+    [
+      "r2:2",
+      "led_red:A",
+      "red",
+      []
+    ],
+    [
+      "led_red:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "door_sw:1",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "door_sw:3",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "door_sw:2",
+      "esp:34",
+      "cyan",
+      []
+    ]
+  ],
+  "dependencies": {}
+}
